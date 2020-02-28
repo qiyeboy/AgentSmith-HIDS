@@ -2,14 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pwd.h>
-#include <linux/netlink.h>
-#include <netinet/in.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <errno.h>
-#include <time.h>
-#include <sys/time.h>
+#include <netinet/in.h>
+
+#define NLMSG_ALIGNTO	4U
+#define NLMSG_ALIGN(len) ( ((len)+NLMSG_ALIGNTO-1) & ~(NLMSG_ALIGNTO-1) )
+#define NLMSG_HDRLEN	 ((int) NLMSG_ALIGN(64))
+#define NLMSG_LENGTH(len) ((len) + NLMSG_HDRLEN)
+#define NLMSG_SPACE(len) NLMSG_ALIGN(NLMSG_LENGTH(len))
 
 #define MAX_SIZE 2097152
 #define DEVICE_FILENAME "/dev/smith"
@@ -19,6 +22,7 @@ typedef void (*rust_callback)(char *);
 int shm_read_index = 8;
 int pre_read_index = 0;
 int shm_fd = -1;
+
 struct msghdr msg;
 const char *split_ymbol = "\n";
 char user_id[16] = {0};
@@ -46,7 +50,7 @@ static char *get_user_id(const char *msg)
     int i;
     int first = strcspn(msg, split_ymbol);
 
-    for (i = 0; i < (char)sizeof(user_id); i++)
+    for (i = 0; i < sizeof(user_id); i++)
         user_id[i] = 0;
 
     for (i = 0; i < first; i++)
@@ -77,7 +81,8 @@ struct msg_slot *get_slot(void)
 static void clear_sh_mem(void)
 {
     int i;
-    if (shm_read_index > 0 && pre_read_index > 0) {
+    if (shm_read_index > 0 && pre_read_index > 0)
+    {
         if (shm_read_index > pre_read_index) {
             for (i = 0; i < (shm_read_index - pre_read_index); i++)
                 sh_mem[pre_read_index + i] = 0;
@@ -108,9 +113,10 @@ static char *shm_msg_factory_no_callback(char *msg)
     struct timeval ts;
     memset(shm_res, 0, NLMSG_SPACE(4096));
     gettimeofday(&ts, NULL);
-    sprintf(time_buffer, "%ld", ts.tv_sec * 1000 + ts.tv_usec / 1000);
+    sprintf(time_buffer, "%ld\0", ts.tv_sec * 1000 + ts.tv_usec / 1000);
 
-    if (msg) {
+    if (msg)
+    {
         if(strlen(msg) < 4024) {
             strcat(shm_res, msg);
             free(msg);
@@ -119,11 +125,9 @@ static char *shm_msg_factory_no_callback(char *msg)
 
             if (shm_res_len > 16) {
                 user_id = get_user_id(shm_res);
-                if (strcmp(user_id, "-1") != 0) {
-                    username = get_user(atoi(user_id));
-                    strcat(shm_res, username);
-                    strcat(shm_res, "\n");
-                }
+                username = get_user(atoi(user_id));
+                strcat(shm_res, username);
+                strcat(shm_res, "\n");
                 strcat(shm_res, time_buffer);
                 return shm_res;
             }
@@ -181,7 +185,15 @@ char *shm_run_no_callback(void)
                 return res;
             }
         } else {
-            nanosleep((const struct timespec[]){{0, 850000}}, NULL);
+            nanosleep((const struct timespec[]){{0, 50000}}, NULL);
         }
     }
+}
+
+void main()
+{
+    init();
+    shm_init();
+    while (1)
+        shm_run_no_callback();
 }

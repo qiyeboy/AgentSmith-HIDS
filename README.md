@@ -1,172 +1,449 @@
 # AgentSmith-HIDS
 
-A project which is named by inspiration from the movie ---The Matrix
+&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;--The name of this project was inspired by the movie - The Matrix
 
-
-
-[![License](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://github.com/DianrongSecurity/AgentSmith-HIDS/blob/master/LICENSE)
-
+[![License](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://github.com/DianrongSecurity/AgentSmith-HIDS/blob/master/LICENSE) [![Project Status: Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 
 English | [简体中文](README-zh_CN.md)
 
+
+
+
 ### About AgentSmith-HIDS
 
-The AgentSmith-HIDS is not strictly a "Host-based Intrusion Detection System" due to absence of the rule engine and related detection functions in open sourced part, but it can be used as a high-performance "host intelligence collection tool" in building your own HIDS.
+Technically, AgentSmith-HIDS is not a Host-based Intrusion Detection System (HIDS) due to lack of rule engine and detection function. However, it can be used as a high performance 'Host Information Collect Agent' as part of your own HIDS solution.
+The comprehensiveness of information which can be collected by this agent was one of the most important metrics during developing this project, hence it was built to function in the kernel stack and achieve huge advantage comparing to those function in user stack, such as:
 
+* **Better performance**, Information needed are collected in kernel stack to avoid additional supplement actions such as traversal of '/proc'; and to enhance the performance of data transportation, data collected is transferred via shared ram instead of netlink.
+* **Hard to be bypassed**, Information collection was powered by specifically designed kernel drive, makes it almost impossible to bypass the detection for malicious software like rootkit, which can deliberately hide themselves.
+* **Easy to be integrated**，The AgentSmith-HIDS was built to integrate with other applications and can be used not only as security tool but also a good monitoring tool, or even a good detector of your assets. The agent is capable of collecting the users, files, processes and internet connections for you, so let's imagine when you integrate it with CMDB, you could get a comprehensive map consists of your network, host, container and business (even dependencies). What if you also have a Database audit tool at hand? The map can be extended to contain the relationship between your DB, DB User, tables, fields, applications, network, host and containers etc. Thinking of the possibility of integration with network intrusion detection system and/or threat intelligence etc., higher traceability could also be achieved. It just never gets old.
+* **Kernel stack + User stack**，AgentSmith-HIDS also provide user stack module, to further extend the functionality when working with kernel stack module.
 
 
-
-### Who will be interested in AgentSmith-HIDS？
-
-For security engineers who have a certain understanding of Linux and need a functional HIDS, yet are not satisfied with the performance, collaboration capacity or secondary development difficulty of existing HIDS, the AgentSmith-HIDS may be your choice. The AgentSmith-HIDS is developed for collaboration with Dianrong’s AgentSmith-NIDS, focusing on lower performance loss and higher collaboration capacity.
-
-
-
-
-### What does the AgentSmith-HIDS achieved:
-* Hook the system_call of **execve, connect, init_module, finit_module** by loading LKM;
-
-* Being compatible with Linux namespace so that information of Docker container can be collected;
-
-* Implemented two ways of transferring Hook Info from kernel mode to user mode: netlink and shared memory. The transmission loss under shared memory mode is 30% less compared to netlink with a time-consuming median of 8478ns on test server. Please refer to https://github.com/DianrongSecurity/AgentSmith-HIDS/tree/master/doc for detailed AgentSmith-HIDS BencherMark.
-
-
-
-### About compatible systems and kernel versions
-
-* AgentSmith-HIDS has only been fully tested on Centos version 7.2/7.3/7.4/7.5/7.6 and Kernel version 3.10-327/3.10-514/3.10-693/3.10-862/3.10-957. Although theoretically the AgentSmith-HIDS should be compatible with more versions, due to lack of comprehensive tests, it is forced to check the Kernel version (>3.10) when loading LKM. Anyone who have tested the compatibility on other versions, Feel is always welcome and please do feel free to contact us (a stability test report will be required)
-
-* We will keep the development of the AgentSmith-HIDS and following the latest release of stable version of Centos7.
-
-
-
-### About compatibility with Docker
-
-Installing the AgentSmith-HIDS on the host enables you to monitor the behavior of the container on corresponding host. The nodename varies depends on the source of the behavior, which should be:
-
-| Source of the behavior  | Nodename       |
-| ----------------------- | -------------- |
-| Host                    | hostname       |
-| Native Docker container | container name |
-| k8s                     | pod name       |
-
-
-
-### How to use the AgentSmith-HIDS
-* The AgentSmith-HIDS provides a simple user-mode demo which is responsible for receiving information transmitted from LKM, converting the information received to JSON format and forwarding it to the server. We utilized the Rust in developing the AgentSmith-HIDS and the openssl lib will be required to provide necessary support. Also, the transmission method is Kafka.
-* The positioning of the AgentSmith-HIDS is a lightweight, high-performance information collecting tool, which can further detect some blind spots in the detection capability of the AgentSmith-NIDS such as shell reversion, command execution, malicious programs downloading, some rootkits etc... Meanwhile, it collaborates with the AgentSmith-NIDS and CMDB to provide a comprehensive view including:<br>
-	•	PID;<br>
-	•	PPID;<br>
-	•	Nodename;<br>
-	•	Cmdline;<br>
-	•	Cwd;<br>
-	•	User;<br>
-	•	Exe;<br>
-	•	TCP/UDP quintuple;<br>
-	•	Raw data of some supported protocals;<br>
-	•	Related business information;<br>
-	•	FW_RULE;<br>
-	•	NIDS/HIDS rules;<br>
-	•	threat intelligence information.<br>
-
-
-
-### About the current progress and future plan
-AgentSmith-HIDS has passed stress testing/stability testing in Dianrong, and is currently conducting more comprehensive testing in the internal online test environment. The Linux baseline check/Linux integrity check function will be updated in the future.
-
-
-
-
-### Rapid Testing
-1. Compile LKM or download the compiled LKM file (please pay attention to the kernel version): https://github.com/DianrongSecurity/AgentSmith-HIDS/tree/master/syshook/release, 
-To compile LKM yourself, you need to install Linux Kernel Source. The directory will be: `/syshook/LKM` and get the LKM file `syshook.ko` by `make`.
-
-2. Publish the compiled LKM file to your test server. Please pay attention that the Kernel version needs to be consistent with the server used for compiling.
-
-3. Install the LKM file in the test environment by using `insmod syshook.ko`
-
-4. Deploy the Kafka Server in your test environment for receiving information and create topic manually.
-
-5. (Optional) Deploy a Heartbeat Server in your test environment, please refer to: https://github.com/DianrongSecurity/AgentSmith-HIDS/tree/master/smith_console
-
-6. In order to compile the agent module, you need to install the rust environment in advance. In the directory: `/root/smithhids/agent/src/conf`, modify the related Kafka information and heartbeat configuration in configuration file of the agent: `/root/smithhids/agent/src/conf/settings.rs`, then run `cargo build --release`, on `/agent/target/release/` can get agent.（maybe need `yum install openssl` && `yum install openssl-devel`)
-
-7. Install the agent: deploy the agent to your test environment and execute it directly.
-
-8. If the Heartbeat Server is configured and deployed, you will be able to review the status of the test server through the HIDS Console. For details, please refer to: https://github.com/DianrongSecurity/AgentSmith-HIDS/tree/master/smith_console.
-
-9. Enforcing configured to SELinux will not affect the agent.
-
-Note: Since the Agent obtains the local IP through the command: `hostname -i`, please ensure that the hostname and hosts are configured correctly during the test to prevent the HIDS Console from getting a wrong one.
-
-
-
-
-### Work Flow Chart
-
-![simple_flow_chart](https://github.com/DianrongSecurity/AgentSmith-HIDS/blob/master/simple_flow_chart.png)
-
-
-
-
-### Uninstalling
-
-Before uninstalling the AgentSmith-HIDS, you need to close the user-mode agent process. The default Log path of the agent is located in: `/var/log/smith.log`, and also the default pid file in: `/run/smith.pid`. By default: `cat /run/ Smith.pid |xargs kill -9` then uninstall it by `rmmod syshook`.
-
-
-
-
-### Simple Demo
-
-![Demo](https://github.com/DianrongSecurity/AgentSmith-HIDS/blob/master/demo.gif)
-
-
-
-
-### Smith LKM Definition
-
-
-| Define                      | Description                                                  |
-| --------------------------- | ------------------------------------------------------------ |
-| SEND_TYPE                   | LKM to user mode transmission method: <br />1. NETLINK; <br />2. SHERE_MEM;<br /> Default: 2 |
-| KERNEL_PRINT                | Debug output:<br />-1. no output;<br />1. index information in shared memory;<br />2. captured information;<br />Default: -1 |
-| DELAY_TEST                  | Delay during transmission:<br />-1. Disable<br />1. Enable<br />Default: -1 |
-| WRITE_INDEX_TRY_LOCK        | Only functional when SEND_TYPE=2, which controls the method of write_index lock:<br />-1. Use write_lock()<br />1. Use write_trylock()<br />Default: -1 |
-| WRITE_INDEX_TRY_LOCK_NUM    | Only functional when WRITE_INDEX_TRY_LOCK=1, which sets the number of write_trylock()<br />Default: 3 |
-| CONNECT_TIME_TEST           | Test time consuming of connect():<br />0.Disable<br />1.Test time consuming of connect() without Hook<br />2.Test time consuming of connect() with Hook<br />Default: 0 |
-| EXECVE_TIME_TEST            | Test time consuming of Hook execve():<br />1.Disable;<br />2.Enable;<br />Default: -1 |
-| SAFE_EXIT                   | Safe rmmod:<br />-1.Disable, which will not stop rmmod, may leads to kernel crashed under some special circumstances;<br />1.Enable, which will stop rmmod when it may cause kernel crashed;<br />Default: 1 |
-| MAX_SIZE                    | Only functional when SEND_TYPE=2, which defines the the size of memory shared with the user mode. Must be consistent with the configuration in user mode and should be set to use whole pages.<br />Default: 2097152 (2M). |
-| CHECK_READ_INDEX_THRESHOLD  | Only functional when SEND_TYPE=2, which means the threshold of read_index. Any data captured by LKM and the size is less than the threshold will be discarded.<br />Default: 524288 |
-| CHECK_WRITE_INDEX_THRESHOLD | Only functional when SEND_TYPE=2, which means the threshold of write_index from boundary of the shared memory. The write_index will be reset when it exceeds the threshold.<br />Default: 32768 |
-| DATA_ALIGMENT               | Try 4-byte alignment of the data that needs to be transferred:<br />-1.off;<br />1.on;<br />Default: -1 |
-| EXIT_PROTECT                | Protect the agent itself from being rmmod:<br />1.Disable;<br />2.Enable;<br />Default: -1 |
-
-
-
-
-About SAFE_EXIT: in the case of Hook connect, if there is a connection not returned when executing rmmod, then connect will return to a wrong memory address after rmmod, which will lead to kernel crashed. Enable the SAFE_EXIT will prevent this from happening by adding references, and as consequences, the rmmod LKM may not be execute immediately. If the SAFE_EXIT is disabled, it is necessary to note that if you want to uninstall Smith LKM, a restart to the host is needed. Otherwise, it may cause an incident to your host or running programs.
-
-In fact, Smith LKM will automatically turn off almost all of its functions without data access from user-mode, thus the impact to performance of the host can be ignored.
-
-
-
-
-### Special Note
-
-* Although we have collected all the information we want through Hook syscall, there is still possibility of bypassing Hook which you may want to pay attention to, even it is pretty difficult and not likely to happen a lot. We recommend that you should deploy HIDS as soon as possible after the server is initialized to achieve a better protection.
-
-* Please perform comprehensive testing work before deploy the HIDS.
-
-
-
-### Special Thanks
-
-Credits to [@yuzunzhi](https://github.com/yuzunzhi) and [@hapood](https://github.com/hapood) and thank you for all the support provided during our development.
-
+
+### Major abilities of AgentSmith-HIDS：
+
+* Kernel stack module hooks **execve, connect, process inject, mprotect, create file, DNS query, load LKM** behaviors via Kprobe，and is also capable of monitoring containers by being compatible with Linux namespace.
+* User stack module utilize built in detection functions including queries of **User List**，**Listening ports list**，**System RPM list**，**Schedule jobs**
+* **AntiRootkit**，From: [Tyton](https://github.com/nbulischeck/tyton) ,for now add **PROC_FILE_HOOK**，**SYSCALL_HOOK**，**LKM_HIDDEN**，**INTERRUPTS_HOOK** feature，but only wark on Kernel > 3.10.
+* Cred Change monitoring (sudo/su/sshd except)
+* User Login monitoring
+
+
+### Usage scenarios/methods of AgentSmith-HIDS (to be added)
+
+* [How to detect reverse shell by AgentSmith HIDS](doc/How-to-use-AgentSmith-HIDS-to-detect-reverse-shell/How-to-detect-reverse-shell-by-AgentSmith-HIDS.md)
+
+
+### About the compatibility with Kernel version
+
+* Kernel > 2.6.25
+* AntiRootKit > 3.10
+
+
+### About the compatibility with Containers
+
+| Source | Nodename       |
+| ------ | -------------- |
+| Host   | hostname       |
+| Docker | container name |
+| k8s    | pod name       |
+
+
+
+
+### Composition of AgentSmith-HIDS
+
+* **Kernel stack module (LKM)**
+    Hook key functions via Kprobe to capture information needed.
+* **User stack module** 
+    Collect data capatured by kernel stack module, perform necessary process and send it to Kafka; 
+    Keep sending heartbeat packet to server so process integrity can be identitied; 
+    Execute commands received from server.
+* **Agent Server**(Optional)
+    Send commands to user stack module and monitoring the status of user stack module.
+
+### Execve Hook
+
+Achieved by hooking **sys_execve()/sys_execveat()/compat_sys_execve()/compat_sys_execveat()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"59",
+    "run_path":"/opt/ltp/testcases/bin/growfiles",
+    "exe":"/opt/ltp/testcases/bin/growfiles",
+    "argv":"growfiles -W gf26 -D 0 -b -i 0 -L 60 -u -B 1000b -e 1 -r 128-32768:128 -R 512-64000 -T 4 -f gfsmallio-35861 -d /tmp/ltp-Ujxl8kKsKY ",
+    "pid":"35861",
+    "ppid":"35711",
+    "pgid":"35861",
+    "tgid":"35861",
+    "comm":"growfiles",
+    "nodename":"test",
+    "stdin":"/dev/pts/1",
+    "stdout":"/dev/pts/1",
+    "sessionid":"3",
+    "dip":"192.168.165.1",
+    "dport":"61726",
+    "sip":"192.168.165.128",
+    "sport":"22",
+    "sa_family":"1",
+    "pid_tree":"1(systemd)->1384(sshd)->2175(sshd)->2177(bash)->2193(fish)->35552(runltp)->35711(ltp-pan)->35861(growfiles)",
+    "tty_name":"pts1",
+    "socket_process_pid":"2175",
+    "socket_process_exe":"/usr/sbin/sshd",
+    "SSH_CONNECTION":"192.168.165.1 61726 192.168.165.128 22",
+    "LD_PRELOAD":"/root/ldpreload/test.so",
+    "user":"root",
+    "time":"1579575429143",
+    "local_ip":"192.168.165.128",
+    "hostname":"test",
+    "exe_md5":"01272152d4901fd3c2efacab5c0e38e5",
+    "socket_process_exe_md5":"686cd72b4339da33bfb6fe8fb94a301f"
+}
+```
+
+
+
+### Connect Hook
+
+Achieved by hooking **sys_connect()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"42",
+    "sa_family":"2",
+    "fd":"4",
+    "dport":"1025",
+    "dip":"180.101.49.11",
+    "exe":"/usr/bin/ping",
+    "pid":"6294",
+    "ppid":"1941",
+    "pgid":"6294",
+    "tgid":"6294",
+    "comm":"ping",
+    "nodename":"test",
+    "sip":"192.168.165.153",
+    "sport":"45524",
+    "res":"0",
+    "sessionid":"1",
+    "user":"root",
+    "time":"1575721921240",
+    "local_ip":"192.168.165.153",
+    "hostname":"test",
+    "exe_md5":"735ae70b4ceb8707acc40bc5a3d06e04"
+}
+```
+
+
+
+### DNS Query Hook
+
+Achieved by hooking **sys_recvfrom()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"601",
+    "sa_family":"2",
+    "fd":"4",
+    "dport":"53",
+    "dip":"192.168.165.2",
+    "exe":"/usr/bin/ping",
+    "pid":"6294",
+    "ppid":"1941",
+    "pgid":"6294",
+    "tgid":"6294",
+    "comm":"ping",
+    "nodename":"test",
+    "sip":"192.168.165.153",
+    "sport":"53178",
+    "qr":"1",
+    "opcode":"0",
+    "rcode":"0",
+    "query":"www.baidu.com",
+    "sessionid":"1",
+    "user":"root",
+    "time":"1575721921240",
+    "local_ip":"192.168.165.153",
+    "hostname":"test",
+    "exe_md5":"39c45487a85e26ce5755a893f7e88293"
+}
+```
+
+
+
+### Create File Hook
+
+Achieved by hooking **security_inode_create()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"602",
+    "exe":"/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.232.b09-0.el7_7.x86_64/jre/bin/java",
+    "file_path":"/tmp/kafka-logs/replication-offset-checkpoint.tmp",
+    "pid":"3341",
+    "ppid":"1",
+    "pgid":"2657",
+    "tgid":"2659",
+    "comm":"kafka-scheduler",
+    "nodename":"test",
+    "sessionid":"3",
+    "user":"root",
+    "time":"1575721984257",
+    "local_ip":"192.168.165.153",
+    "hostname":"test",
+    "exe_md5":"215be70a38c3a2e14e09d637c85d5311",
+    "create_file_md5":"d41d8cd98f00b204e9800998ecf8427e"
+}
+```
+
+
+
+### Process Inject Hook
+
+Achieved by hooking **sys_ptrace()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"101",
+    "ptrace_request":"4",
+    "target_pid":"7402",
+    "addr":"00007ffe13011ee6",
+    "data":"-a",
+    "exe":"/root/ptrace/ptrace",
+    "pid":"7401",
+    "ppid":"1941",
+    "pgid":"7401",
+    "tgid":"7401",
+    "comm":"ptrace",
+    "nodename":"test",
+    "sessionid":"1",
+    "user":"root",
+    "time":"1575722717065",
+    "local_ip":"192.168.165.153",
+    "hostname":"test",
+    "exe_md5":"863293f9fcf1af7afe5797a4b6b7aa0a"
+}
+```
+
+
+### mprotect Hook
+
+Achieved by hooking **mprotect()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"10",
+    "exe":"/root/dlinject/main",
+    "pid":"9729",
+    "ppid":"2443",
+    "pgid":"9729",
+    "tgid":"9729",
+    "comm":"main",
+    "start":"140377101094912",
+    "len":"16384",
+    "prot":"1",
+    "nodename":"test",
+    "sessionid":"4",
+    "user":"root",
+    "time":"1582823732418",
+    "local_ip":"192.168.165.152",
+    "hostname":"test",
+    "exe_md5":"716d8dc1f34427ed1893dc9958e96b2f"
+}
+
+```
+
+### Load LKM File Hook
+
+Achieved by hooking **load_module()**, example:
+
+```json
+{
+    "uid":"0",
+    "data_type":"603",
+    "exe":"/usr/bin/kmod",
+    "lkm_file":"/root/ptrace/ptrace",
+    "pid":"29461",
+    "ppid":"9766",
+    "pgid":"29461",
+    "tgid":"29461",
+    "comm":"insmod",
+    "nodename":"test",
+    "sessionid":"13",
+    "user":"root",
+    "time":"1577212873791",
+    "local_ip":"192.168.165.152",
+    "hostname":"test",
+    "exe_md5":"0010433ab9105d666b044779f36d6d1e",
+    "load_file_md5":"863293f9fcf1af7afe5797a4b6b7aa0a"
+}
+```
+
+
+### Cred Change Hook
+
+Achieved by Hook **commit_creds()**，example：
+
+```json
+{
+    "uid":"0",
+    "data_type":"604",
+    "exe":"/tmp/tt",
+    "pid":"27737",
+    "ppid":"26865",
+    "pgid":"27737",
+    "tgid":"27737",
+    "comm":"tt",
+    "old_uid":"1000",
+    "nodename":"test",
+    "sessionid":"42",
+    "user":"root",
+    "time":"1578396197131",
+    "local_ip":"192.168.165.152",
+    "hostname":"test",
+    "exe_md5":"d99a695d2dc4b5099383f30964689c55"
+}
+```
+
+
+### User Login Alert
+```json
+{
+    "data_type":"1001",
+    "status":"Failed",
+    "type":"password",
+    "user_exsit":"false",
+    "user":"sad",
+    "from_ip":"192.168.165.1",
+    "port":"63089",
+    "processor":"ssh2",
+    "time":"1578405483119",
+    "local_ip":"192.168.165.128",
+    "hostname":"localhost.localdomain"
+}
+```
+
+
+### PROC File Hook Alert
+```json
+{
+    "uid":"-1",
+    "data_type":"700",
+    "module_name":"autoipv6",
+    "hidden":"0",
+    "time":"1578384987766",
+    "local_ip":"192.168.165.152",
+    "hostname":"test"
+}
+```
+
+
+### Syscall Hook Alert
+```json
+{
+    "uid":"-1",
+    "data_type":"701",
+    "module_name":"diamorphine",
+    "hidden":"1",
+    "syscall_number":"78",
+    "time":"1578384927606",
+    "local_ip":"192.168.165.152",
+    "hostname":"test"
+}
+```
+
+
+### LKM Hidden Alert
+```json
+{
+    "uid":"-1",
+    "data_type":"702",
+    "module_name":"diamorphine",
+    "hidden":"1",
+    "time":"1578384927606",
+    "local_ip":"192.168.165.152",
+    "hostname":"test"
+}
+```
+
+
+### Interrupts Hook Alert
+```json
+{
+    "uid":"-1",
+    "data_type":"703",
+    "module_name":"syshook",
+    "hidden":"1",
+    "interrupt_number":"2",
+    "time":"1578384927606",
+    "local_ip":"192.168.165.152",
+    "hostname":"test"
+}
+```
+
+
+### About Performance of AgentSmith-HIDS
+
+Testing Environment:
+
+| CPU       | Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz 2 Core |
+| --------- | ------------------------------------------------ |
+| RAM       | 2GB                                              |
+| OS/Kernel | Centos7  /  3.10.0-1062.7.1.el7.x86_64           |
+
+Testing Result:
+
+| Hook Handler           | Average Delay(us) |
+| ---------------------- | ----------------- |
+| execve_entry_handler   | 10.4              |
+| connect_handler        | 7.5               |
+| connect_entry_handler  | 0.06              |
+| recvfrom_handler       | 9.2               |
+| recvfrom_entry_handler | 0.17              |
+| fsnotify_post_handler  | 0.07              |
+
+Original Testing Data:
+
+[Benchmark Data](https://github.com/EBWi11/AgentSmith-HIDS/tree/master/benchmark_data)
+
+
+
+### Documents for deployment and testing purpose:
+
+[Quick Start](https://github.com/EBWi11/AgentSmith-HIDS/blob/master/doc/AgentSmith-HIDS-Quick-Start.md)
+
+
+
+
+### Special Thanks(Not in order)
+
+[yuzunzhi](https://github.com/yuzunzhi)
+
+[hapood](https://github.com/hapood)
+
+[HF-Daniel](https://github.com/HF-Daniel)
+
+
+
+
+### Wechat of developer
+
+<img src="doc/wechat.jpg" width="50%" height="50%"/>
+
+
+### Wechat channel of '灾难控制局'
+
+We would constantly provide information about the functionalities of AgentSmith-HIDS via this channel, a good place to receive the most updated news:)
+
+<img src="doc/SecDamageControl.jpg" width="50%" height="50%"/>
 
 
 ## License
 
 AgentSmith-HIDS kernel module are distributed under the GNU GPLv2 license.
-
